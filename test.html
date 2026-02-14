@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
+  <title>Test Portal – Exam</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    body { background: linear-gradient(145deg, #f0f4ff 0%, #e6edfa 100%); min-height: 100vh; }
+    .glass-panel { background: rgba(255,255,255,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 25px 40px -15px rgba(0,0,0,0.1); }
+    .option { transition: all 0.2s; cursor: pointer; border: 2px solid transparent; background: white; }
+    .option:hover { background: #eff6ff; border-color: #3b82f6; transform: translateY(-2px); }
+    .option.selected { background: #dbeafe; border-color: #2563eb; box-shadow: 0 8px 15px -6px #3b82f6; }
+    .timer-critical { color: #dc2626; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .progress-bar { height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #2563eb); transition: width 1s linear; }
+    .loading-dots { display: inline-flex; align-items: center; gap: 6px; }
+    .loading-dots span { width: 10px; height: 10px; background: #3b82f6; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+    .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce { 0%,80%,100% { transform: scale(0); } 40% { transform: scale(1); } }
+    .qnav-circle { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 600; cursor: pointer; transition: all 0.2s; border: 2px solid transparent; background: white; color: #1e293b; }
+    .qnav-circle.answered { background: #22c55e; color: white; border-color: #15803d; }
+    .qnav-circle.not-answered { background: #f87171; color: white; border-color: #b91c1c; }
+    .qnav-circle.flagged { background: #a855f7; color: white; border-color: #7e22ce; }
+    .qnav-circle.current { border: 3px solid #3b82f6; transform: scale(1.1); box-shadow: 0 0 0 3px rgba(59,130,246,0.3); }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); align-items: center; justify-content: center; z-index: 1000; }
+    .modal-content { background: white; padding: 2rem; border-radius: 2rem; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+    .numerical-input { width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 1rem; font-size: 1.125rem; }
+    .numerical-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.2); }
+  </style>
+</head>
+<body class="font-sans p-4 md:p-6">
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="glass-panel rounded-3xl p-5 mb-6 flex flex-wrap justify-between items-center">
+      <div>
+        <h1 class="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent" id="testName">Loading...</h1>
+        <p class="text-sm text-gray-600" id="studentInfo"></p>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="flex space-x-2">
+          <button onclick="setLanguage('en')" class="px-3 py-1 bg-white/70 text-blue-800 rounded-full text-sm font-medium shadow-sm">EN</button>
+          <button onclick="setLanguage('hi')" class="px-3 py-1 bg-white/70 text-indigo-800 rounded-full text-sm font-medium shadow-sm">हिंदी</button>
+        </div>
+        <div class="text-right">
+          <div class="text-xs text-gray-500">⏱️ Time Left</div>
+          <div id="timer" class="text-2xl font-mono font-bold text-gray-800">00:00</div>
+          <div class="progress-bar w-32 mt-1"><div id="timerProgress" class="progress-fill" style="width:100%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex flex-col md:flex-row gap-6">
+      <!-- Question Panel -->
+      <div class="flex-1">
+        <div id="questionContainer" class="glass-panel rounded-3xl p-6 md:p-8">
+          <div class="flex justify-between items-center mb-6">
+            <span class="text-sm font-medium bg-white/70 px-4 py-2 rounded-full shadow-sm" id="questionCounter">Q1/10</span>
+            <span class="text-sm text-gray-500">⭐ <span id="marksScheme"></span></span>
+          </div>
+          <div id="questionText" class="text-lg md:text-xl font-medium text-gray-800 mb-4"></div>
+          <div id="questionImage" class="mb-6 flex justify-center bg-white/50 p-4 rounded-xl hidden">
+            <img src="" alt="Question image" class="max-h-64 rounded-lg shadow-md">
+          </div>
+          <div id="optionsContainer" class="space-y-3 mt-6"></div>
+          <div class="flex justify-between mt-8 pt-4 border-t border-white/30">
+            <button onclick="prevQuestion()" id="prevBtn" class="px-6 py-2 bg-white/80 hover:bg-white rounded-full text-gray-700 font-medium flex items-center gap-2 disabled:opacity-50 shadow-sm transition">
+              <i class="fas fa-arrow-left"></i> Previous
+            </button>
+            <button onclick="toggleFlag()" id="flagBtn" class="px-6 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-full font-medium flex items-center gap-2 shadow-sm transition">
+              <i class="fas fa-flag"></i> <span id="flagBtnText">Mark for Review</span>
+            </button>
+            <button onclick="nextQuestion()" id="nextBtn" class="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-full font-medium flex items-center gap-2 shadow-lg transition">
+              Next <i class="fas fa-arrow-right"></i>
+            </button>
+            <button onclick="openSubmitModal()" id="submitBtn" class="px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-full font-medium hidden shadow-lg transition">
+              <i class="fas fa-check-circle"></i> Submit
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Question Navigator Sidebar -->
+      <div class="w-full md:w-64 glass-panel rounded-3xl p-5">
+        <h3 class="font-semibold text-gray-700 mb-3 flex items-center gap-2"><i class="fas fa-list-ol"></i> Questions</h3>
+        <div id="questionNavigator" class="grid grid-cols-4 gap-2"></div>
+        <div class="mt-4 text-xs text-gray-600 flex flex-col gap-1">
+          <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-green-500"></span> Answered</div>
+          <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-red-400"></span> Not Answered</div>
+          <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-purple-500"></span> Flagged</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result Modal -->
+  <div id="resultModal" class="modal">
+    <div class="modal-content">
+      <div class="text-6xl mb-4">🎉</div>
+      <h2 class="text-2xl font-bold text-gray-800 mb-2">Test Submitted!</h2>
+      <p class="text-gray-600 mb-4">Your score: <span id="modalScore" class="text-3xl font-bold text-blue-600">0</span></p>
+      <p class="text-gray-600 mb-6">Rank: <span id="modalRank" class="text-xl font-semibold">#0</span></p>
+      <button onclick="closeResultModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-medium shadow-lg transition">
+        <i class="fas fa-check mr-2"></i> Close
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzTM-Vv0uiKIJ03l3dV95FkH0rmZysRidqdCMPoMbNWL78nG3zeymPxNZDQhyKPaU8e/exec'; // <-- Replace
+    const token = localStorage.getItem('studentToken');
+    if (!token) window.location.href = 'login.html';
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const testId = urlParams.get('testId');
+    if (!testId) window.location.href = 'index.html';
+
+    let questions = [], currentIndex = 0, answers = {}, testInfo = null, timeLeft = 0, timerInterval;
+    let currentLang = 'en';
+    let visitedQuestions = new Set();
+    let flaggedQuestions = new Set(JSON.parse(localStorage.getItem(`flagged_${testId}`) || '[]'));
+
+    // ---------- Helper functions ----------
+    function showLoadingOnButton(btnId) {
+      const btn = document.getElementById(btnId);
+      if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-dots"><span></span><span></span><span></span></div>`; }
+    }
+    function hideLoadingOnButton(btnId, originalHTML) {
+      const btn = document.getElementById(btnId);
+      if (btn) { btn.disabled = false; btn.innerHTML = originalHTML; }
+    }
+
+    window.onload = async () => {
+      document.getElementById('studentInfo').innerText = `👤 ${localStorage.getItem('studentName') || ''}`;
+      await loadTest();
+    };
+
+    async function loadTest() {
+      try {
+        showLoadingOnButton('nextBtn');
+        const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getTest', token, testId }) });
+        const data = await res.json();
+        if (data.status !== 'success') throw new Error(data.data);
+        testInfo = data.data;
+        document.getElementById('testName').innerText = testInfo.testName;
+        document.getElementById('marksScheme').innerText = `+${testInfo.correctMarks} / ${testInfo.wrongMarks} / 0:${testInfo.skipMarks}`;
+        timeLeft = (parseInt(testInfo.duration) || 30) * 60;
+        startTimer();
+        
+        const qRes = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getQuestions', token, testId }) });
+        const qData = await qRes.json();
+        questions = qData.data;
+        const saved = localStorage.getItem(`answers_${testId}`);
+        answers = saved ? JSON.parse(saved) : {};
+        buildNavigator();
+        renderQuestion(0);
+        hideLoadingOnButton('nextBtn', 'Next <i class="fas fa-arrow-right"></i>');
+      } catch(e) { alert('Error: '+e.message); window.location.href = 'index.html'; }
+    }
+
+    function buildNavigator() {
+      const nav = document.getElementById('questionNavigator');
+      let html = '';
+      questions.forEach((q, idx) => {
+        let status = 'not-answered';
+        const ans = answers[q.qId];
+        if (ans) {
+          if (q.questionType === 'NUMERICAL') {
+            if (ans.value && ans.value.trim() !== '') status = 'answered';
+          } else {
+            if (ans.selected && ans.selected.trim() !== '') status = 'answered';
+          }
+        }
+        if (flaggedQuestions.has(idx)) status = 'flagged';
+        const currentClass = idx === currentIndex ? 'current' : '';
+        html += `<div class="qnav-circle ${status} ${currentClass}" onclick="jumpToQuestion(${idx})">${idx+1}</div>`;
+      });
+      nav.innerHTML = html;
+    }
+
+    function updateNavigator() {
+      const circles = document.querySelectorAll('.qnav-circle');
+      circles.forEach((circle, idx) => {
+        const q = questions[idx];
+        let status = 'not-answered';
+        const ans = answers[q.qId];
+        if (ans) {
+          if (q.questionType === 'NUMERICAL') {
+            if (ans.value && ans.value.trim() !== '') status = 'answered';
+          } else {
+            if (ans.selected && ans.selected.trim() !== '') status = 'answered';
+          }
+        }
+        if (flaggedQuestions.has(idx)) status = 'flagged';
+        circle.className = `qnav-circle ${status} ${idx === currentIndex ? 'current' : ''}`;
+      });
+    }
+
+    function jumpToQuestion(index) {
+      if (index >= 0 && index < questions.length) {
+        currentIndex = index;
+        renderQuestion(currentIndex);
+        updateNavigator();
+      }
+    }
+
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft <= 0) { clearInterval(timerInterval); submitTest(true); }
+        const mins = Math.floor(timeLeft/60), secs = timeLeft%60;
+        document.getElementById('timer').innerText = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+        const percent = (timeLeft / (parseInt(testInfo.duration)*60)) * 100;
+        document.getElementById('timerProgress').style.width = `${percent}%`;
+        if (timeLeft < 60) document.getElementById('timer').classList.add('timer-critical');
+      }, 1000);
+    }
+
+    function setLanguage(lang) { currentLang = lang; renderQuestion(currentIndex); }
+    
+    function renderQuestion(index) {
+      if (!questions.length) return;
+      visitedQuestions.add(index);
+      const q = questions[index];
+      document.getElementById('questionCounter').innerText = `Q${index+1}/${questions.length}`;
+      document.getElementById('questionText').innerText = currentLang === 'en' ? q.qTextEng : (q.qTextHin || q.qTextEng);
+      if (q.imageUrl) {
+        document.getElementById('questionImage').classList.remove('hidden');
+        document.getElementById('questionImage').querySelector('img').src = q.imageUrl;
+      } else document.getElementById('questionImage').classList.add('hidden');
+      
+      let html = '';
+      if (q.questionType === 'NUMERICAL') {
+        const saved = answers[q.qId]?.value || '';
+        html = `<div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Your Answer:</label>
+          <input type="number" step="any" id="numericalInput" value="${saved}" class="numerical-input" placeholder="Enter numeric answer" oninput="saveNumericalAnswer('${q.qId}', this.value)">
+        </div>`;
+      } else {
+        const opts = [
+          { id: '1', textEn: q.opt1Eng, textHi: q.opt1Hin || q.opt1Eng },
+          { id: '2', textEn: q.opt2Eng, textHi: q.opt2Hin || q.opt2Eng },
+          { id: '3', textEn: q.opt3Eng, textHi: q.opt3Hin || q.opt3Eng },
+          { id: '4', textEn: q.opt4Eng, textHi: q.opt4Hin || q.opt4Eng }
+        ];
+        opts.forEach(opt => {
+          const optText = currentLang === 'en' ? opt.textEn : opt.textHi;
+          const selected = answers[q.qId]?.selected === opt.id ? 'selected' : '';
+          html += `<div class="option p-4 rounded-xl border ${selected}" onclick="selectOption('${q.qId}','${opt.id}')"><span class="font-medium mr-3">${opt.id}.</span> ${optText}</div>`;
+        });
+      }
+      document.getElementById('optionsContainer').innerHTML = html;
+      
+      const flagBtn = document.getElementById('flagBtn');
+      const flagText = document.getElementById('flagBtnText');
+      if (flaggedQuestions.has(index)) {
+        flagBtn.classList.add('bg-purple-200', 'text-purple-800');
+        flagBtn.classList.remove('bg-amber-100', 'text-amber-800');
+        flagText.innerText = 'Remove Flag';
+      } else {
+        flagBtn.classList.add('bg-amber-100', 'text-amber-800');
+        flagBtn.classList.remove('bg-purple-200', 'text-purple-800');
+        flagText.innerText = 'Mark for Review';
+      }
+      
+      document.getElementById('prevBtn').disabled = index === 0;
+      if (index === questions.length - 1) {
+        document.getElementById('nextBtn').classList.add('hidden');
+        document.getElementById('submitBtn').classList.remove('hidden');
+      } else {
+        document.getElementById('nextBtn').classList.remove('hidden');
+        document.getElementById('submitBtn').classList.add('hidden');
+      }
+      updateNavigator();
+    }
+
+    window.selectOption = async function(qId, optId) {
+      // Toggle: if already selected, deselect
+      if (answers[qId] && answers[qId].selected === optId) {
+        // Deselect
+        delete answers[qId];
+        await saveAnswer(qId, '', '');
+      } else {
+        // Select
+        answers[qId] = { type: 'mcq', selected: optId };
+        await saveAnswer(qId, optId, '');
+      }
+      localStorage.setItem(`answers_${testId}`, JSON.stringify(answers));
+      renderQuestion(currentIndex);
+    };
+
+    window.saveNumericalAnswer = async function(qId, value) {
+      if (value.trim() === '') {
+        delete answers[qId];
+      } else {
+        answers[qId] = { type: 'numerical', value: value };
+      }
+      localStorage.setItem(`answers_${testId}`, JSON.stringify(answers));
+      await saveAnswer(qId, '', value);
+      updateNavigator();
+    };
+
+    async function saveAnswer(qId, selected, answerValue) {
+      try {
+        await fetch(APPS_SCRIPT_URL, { 
+          method: 'POST', 
+          body: JSON.stringify({ action: 'submitAnswer', token, testId, qId, selected, answerValue }) 
+        });
+      } catch(e) { console.error('Answer save error', e); }
+    }
+
+    function toggleFlag() {
+      if (flaggedQuestions.has(currentIndex)) {
+        flaggedQuestions.delete(currentIndex);
+      } else {
+        flaggedQuestions.add(currentIndex);
+      }
+      localStorage.setItem(`flagged_${testId}`, JSON.stringify([...flaggedQuestions]));
+      renderQuestion(currentIndex);
+      updateNavigator();
+    }
+
+    function nextQuestion() { if (currentIndex < questions.length-1) { currentIndex++; renderQuestion(currentIndex); } }
+    function prevQuestion() { if (currentIndex > 0) { currentIndex--; renderQuestion(currentIndex); } }
+    
+    function openSubmitModal() {
+      if (!confirm('Are you sure you want to submit the test?')) return;
+      submitTest();
+    }
+
+    async function submitTest(forced = false) {
+      clearInterval(timerInterval);
+      showLoadingOnButton('submitBtn');
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'submitTest', token, testId }) });
+        const data = await res.json();
+        if (data.status === 'success') {
+          localStorage.removeItem(`answers_${testId}`);
+          localStorage.removeItem(`flagged_${testId}`);
+          document.getElementById('modalScore').innerText = data.data.score;
+          document.getElementById('modalRank').innerText = `#${data.data.rank}`;
+          document.getElementById('resultModal').style.display = 'flex';
+        } else {
+          alert('Error: ' + data.data);
+          startTimer();
+        }
+      } catch(e) {
+        alert('Error: ' + e.message);
+        startTimer();
+      }
+      hideLoadingOnButton('submitBtn', '<i class="fas fa-check-circle"></i> Submit');
+    }
+
+    function closeResultModal() {
+      document.getElementById('resultModal').style.display = 'none';
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>
