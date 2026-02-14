@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
+  <title>Student Portal – Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    body { background: linear-gradient(145deg, #f0f4ff 0%, #e6edfa 100%); min-height: 100vh; }
+    .glass-card { background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 20px 35px -10px rgba(0,0,0,0.1); }
+    .tab-active { border-bottom: 3px solid #3b82f6; color: #1e40af; font-weight: 600; background: #eff6ff; }
+    .loading-dots { display: inline-flex; align-items: center; gap: 6px; }
+    .loading-dots span { width: 10px; height: 10px; background: #3b82f6; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+    .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce { 0%,80%,100% { transform: scale(0); } 40% { transform: scale(1); } }
+    .info-icon { cursor: help; }
+  </style>
+</head>
+<body class="font-sans antialiased p-4">
+  <div class="glass-card w-full max-w-6xl mx-auto rounded-3xl p-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent" data-i18n="appTitle">📘 Student Portal</h1>
+      <div class="flex items-center gap-4">
+        <div class="flex space-x-2">
+          <button onclick="setLanguage('en')" class="px-3 py-1 bg-white/80 text-blue-800 rounded-full text-sm font-medium shadow-sm">EN</button>
+          <button onclick="setLanguage('hi')" class="px-3 py-1 bg-white/80 text-indigo-800 rounded-full text-sm font-medium shadow-sm">हिंदी</button>
+        </div>
+        <button onclick="logout()" class="px-4 py-2 rounded-full border border-gray-300 hover:bg-gray-100 flex items-center gap-2 text-sm">
+          <i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Student Info Bar -->
+    <div id="studentInfoBar" class="bg-white/50 rounded-xl p-4 mb-6 flex items-center gap-4">
+      <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-2xl text-blue-600">
+        <i class="fas fa-user-graduate"></i>
+      </div>
+      <div>
+        <h2 class="text-xl font-bold text-gray-800" id="studentNameDisplay"></h2>
+        <p class="text-gray-600" id="studentIdDisplay"></p>
+        <p class="text-sm text-gray-500" id="studentDobDisplay"></p>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-1 mb-6">
+      <button data-tab="tests" class="tab-btn px-5 py-2.5 rounded-t-xl text-gray-600 hover:bg-gray-100 transition flex items-center gap-2"><i class="fas fa-pencil-alt"></i> <span data-i18n="tests">Tests</span></button>
+      <button data-tab="results" class="tab-btn px-5 py-2.5 rounded-t-xl text-gray-600 hover:bg-gray-100 transition flex items-center gap-2"><i class="fas fa-history"></i> <span data-i18n="results">Results</span></button>
+      <button data-tab="analysis" class="tab-btn px-5 py-2.5 rounded-t-xl text-gray-600 hover:bg-gray-100 transition flex items-center gap-2"><i class="fas fa-chart-bar"></i> <span data-i18n="analysis">Analysis</span></button>
+      <button data-tab="contact" class="tab-btn px-5 py-2.5 rounded-t-xl text-gray-600 hover:bg-gray-100 transition flex items-center gap-2"><i class="fas fa-envelope"></i> <span data-i18n="contact">Contact</span></button>
+    </div>
+
+    <!-- Tab Panes -->
+    <div id="testsPane" class="tab-pane">
+      <h3 class="text-lg font-semibold mb-4 flex items-center gap-2"><i class="fas fa-pencil-alt text-blue-600"></i> <span data-i18n="availableTests">Available Tests</span></h3>
+      <div id="availableTestsList" class="space-y-3"></div>
+    </div>
+
+    <div id="resultsPane" class="tab-pane hidden">
+      <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+        <i class="fas fa-history text-indigo-600"></i> <span data-i18n="previousResults">Previous Test Results</span>
+        <span class="relative group">
+          <i class="fas fa-info-circle text-gray-400 hover:text-gray-600 text-sm info-icon"></i>
+          <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-10">Rank may change as more students submit. Final rank after all submissions.</span>
+        </span>
+      </h3>
+      <div id="previousResultsList" class="overflow-x-auto"></div>
+    </div>
+
+    <div id="analysisPane" class="tab-pane hidden">
+      <h3 class="text-lg font-semibold mb-4 flex items-center gap-2"><i class="fas fa-chart-bar text-green-600"></i> <span data-i18n="selectTestForAnalysis">Select a test to analyze</span></h3>
+      <select id="analysisTestSelector" class="w-full md:w-64 px-4 py-2 border border-gray-200 rounded-xl bg-white mb-4">
+        <option value="">-- Choose a test --</option>
+      </select>
+      <div id="analysisDetails" class="space-y-4"></div>
+    </div>
+
+    <div id="contactPane" class="tab-pane hidden">
+      <h3 class="text-lg font-semibold mb-4 flex items-center gap-2"><i class="fas fa-envelope text-purple-600"></i> <span data-i18n="contactTeacher">Contact Teacher</span></h3>
+      <div class="bg-white/50 rounded-xl p-6">
+        <textarea id="contactMessage" rows="4" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500" placeholder="Write your message here..."></textarea>
+        <button onclick="sendContactMessage()" id="sendContactBtn" class="mt-4 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold py-3 px-6 rounded-xl transition shadow-lg flex items-center gap-2">
+          <i class="fas fa-paper-plane"></i> <span data-i18n="send">Send Message</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Global Message -->
+    <div id="message" class="mt-4 text-sm text-center hidden p-3 rounded-xl"></div>
+  </div>
+
+  <!-- Analysis Modal (for results table) -->
+  <div id="analysisModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold" id="analysisModalTitle">Test Analysis</h3>
+        <button onclick="closeAnalysisModal()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-2xl"></i></button>
+      </div>
+      <div id="analysisModalContent"></div>
+    </div>
+  </div>
+
+  <script>
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzTM-Vv0uiKIJ03l3dV95FkH0rmZysRidqdCMPoMbNWL78nG3zeymPxNZDQhyKPaU8e/exec'; // REPLACE
+    const translations = {
+      en: { appTitle: '📘 Student Portal', tests: 'Tests', results: 'Results', analysis: 'Analysis', contact: 'Contact', availableTests: 'Available Tests', previousResults: 'Previous Test Results', selectTestForAnalysis: 'Select a test to analyze', contactTeacher: 'Contact Teacher', send: 'Send Message', logout: 'Logout' },
+      hi: { appTitle: '📘 छात्र पोर्टल', tests: 'परीक्षाएँ', results: 'परिणाम', analysis: 'विश्लेषण', contact: 'संपर्क', availableTests: 'उपलब्ध परीक्षाएँ', previousResults: 'पिछले परिणाम', selectTestForAnalysis: 'विश्लेषण के लिए परीक्षा चुनें', contactTeacher: 'शिक्षक से संपर्क', send: 'संदेश भेजें', logout: 'लॉग आउट' }
+    };
+    let currentLang = 'en';
+    let studentToken = localStorage.getItem('studentToken');
+    let studentInfo = null;
+    let testsTaken = [];
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        if (translations[lang]?.[key]) {
+          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.placeholder = translations[lang][key];
+          else el.innerText = translations[lang][key];
+        }
+      });
+    }
+
+    function showMessage(msg, isError = false) {
+      const msgDiv = document.getElementById('message');
+      msgDiv.classList.remove('hidden');
+      msgDiv.className = `mt-4 text-sm text-center p-3 rounded-xl ${isError ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`;
+      msgDiv.innerText = msg;
+      setTimeout(() => msgDiv.classList.add('hidden'), 5000);
+    }
+
+    function showLoading(btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<div class="loading-dots"><span></span><span></span><span></span></div>`;
+    }
+    function hideLoading(btn, originalText) {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
+        this.classList.add('tab-active');
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('hidden'));
+        document.getElementById(this.dataset.tab + 'Pane').classList.remove('hidden');
+        if (this.dataset.tab === 'results') loadResults();
+        if (this.dataset.tab === 'analysis') loadAnalysisTests();
+      });
+    });
+
+    window.onload = function() {
+      setLanguage('en');
+      if (!studentToken) { window.location.href = 'login.html'; return; }
+      loadStudentInfo();
+      loadAvailableTests();
+      document.querySelector('[data-tab="tests"]').click();
+      document.getElementById('analysisTestSelector').addEventListener('change', function(e) {
+        const testId = e.target.value;
+        if (testId) loadAnalysisForTest(testId);
+      });
+    };
+
+    async function loadStudentInfo() {
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getStudentDashboard', token: studentToken }) });
+        const data = await res.json();
+        if (data.status === 'success') {
+          studentInfo = data.data;
+          document.getElementById('studentNameDisplay').innerText = studentInfo.name;
+          document.getElementById('studentIdDisplay').innerText = `ID: ${studentInfo.id}`;
+          document.getElementById('studentDobDisplay').innerText = `DOB: ${studentInfo.dob}`;
+        } else {
+          showMessage(data.data, true);
+        }
+      } catch (e) {
+        showMessage('Network error loading student info', true);
+      }
+    }
+
+    async function loadAvailableTests() {
+      const container = document.getElementById('availableTestsList');
+      container.innerHTML = '<div class="flex justify-center py-8"><div class="loading-dots"><span></span><span></span><span></span></div></div>';
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getAvailableTests', token: studentToken }) });
+        const data = await res.json();
+        if (data.status !== 'success') {
+          container.innerHTML = `<p class="text-red-500 text-center py-4">${data.data}</p>`;
+          return;
+        }
+        if (data.data.length === 0) {
+          container.innerHTML = '<p class="text-gray-500 text-center py-4">No tests available at the moment.</p>';
+          return;
+        }
+        let html = '';
+        data.data.forEach(test => {
+          html += `
+          <div class="bg-white/70 p-4 rounded-xl flex flex-wrap justify-between items-center">
+            <div>
+              <h4 class="font-bold text-gray-800">${test.testName}</h4>
+              <p class="text-sm text-gray-600">Duration: ${test.duration} min | Marks: +${test.correctMarks} / ${test.wrongMarks} / 0:${test.skipMarks}</p>
+            </div>
+            <button onclick="startTest('${test.testId}')" class="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-full text-sm font-medium shadow-lg transition">
+              Start Test <i class="fas fa-arrow-right ml-1"></i>
+            </button>
+          </div>`;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<p class="text-red-500 text-center py-4">Network error loading tests</p>';
+      }
+    }
+
+    function startTest(testId) {
+      window.location.href = `test.html?testId=${testId}`;
+    }
+
+    async function loadResults() {
+      const container = document.getElementById('previousResultsList');
+      container.innerHTML = '<div class="flex justify-center py-8"><div class="loading-dots"><span></span><span></span><span></span></div></div>';
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getStudentResults', token: studentToken }) });
+        const data = await res.json();
+        if (data.status !== 'success') {
+          container.innerHTML = `<p class="text-red-500 text-center py-4">${data.data}</p>`;
+          return;
+        }
+        testsTaken = data.data;
+        if (data.data.length === 0) {
+          container.innerHTML = '<p class="text-gray-500 text-center py-4">You have not taken any tests yet.</p>';
+          return;
+        }
+        let html = '<table class="w-full text-sm"><thead class="bg-gray-100"><tr><th class="p-2 text-left">Test</th><th class="p-2 text-left">Score</th><th class="p-2 text-left">Rank</th><th class="p-2 text-left">Submitted</th><th class="p-2 text-left">Action</th></tr></thead><tbody>';
+        data.data.forEach(r => {
+          html += `
+          <tr class="border-b">
+            <td class="p-2">${r.testName}</td>
+            <td class="p-2 font-bold">${r.score}</td>
+            <td class="p-2">#${r.rank}</td>
+            <td class="p-2">${new Date(r.submitted).toLocaleString()}</td>
+            <td class="p-2"><button onclick="openAnalysis('${r.testId}')" class="text-blue-600 hover:underline text-sm">View Analysis</button></td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<p class="text-red-500 text-center py-4">Network error loading results</p>';
+      }
+    }
+
+    function loadAnalysisTests() {
+      const select = document.getElementById('analysisTestSelector');
+      select.innerHTML = '<option value="">-- Choose a test --</option>';
+      testsTaken.forEach(t => {
+        select.innerHTML += `<option value="${t.testId}">${t.testName} (${new Date(t.submitted).toLocaleDateString()})</option>`;
+      });
+    }
+
+    async function loadAnalysisForTest(testId) {
+      const container = document.getElementById('analysisDetails');
+      container.innerHTML = '<div class="flex justify-center py-8"><div class="loading-dots"><span></span><span></span><span></span></div></div>';
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getTestAnalysis', token: studentToken, testId }) });
+        const data = await res.json();
+        if (data.status !== 'success') {
+          container.innerHTML = `<p class="text-red-500 text-center py-4">${data.data}</p>`;
+          return;
+        }
+        let html = '';
+        data.data.forEach((item, idx) => {
+          const status = item.isCorrect ? 'text-green-600' : 'text-red-600';
+          const yourAnswer = item.studentAnswer || '<em>Not answered</em>';
+          const correctAnswer = item.questionType === 'NUMERICAL' ? item.correctAnswer : `Option ${item.correct}`;
+          html += `<div class="border-b pb-4 mb-4">
+            <p class="font-medium">Q${idx+1}: ${item.qTextEng}</p>
+            <p class="text-sm text-gray-600">${item.qTextHin || ''}</p>
+            <div class="grid grid-cols-2 gap-2 mt-2 text-sm">
+              <div><span class="font-semibold">Your answer:</span> ${yourAnswer}</div>
+              <div><span class="font-semibold">Correct answer:</span> ${correctAnswer}</div>
+              <div><span class="font-semibold">Status:</span> <span class="${status}">${item.isCorrect ? 'Correct' : 'Incorrect'}</span></div>
+              <div><span class="font-semibold">Marks:</span> ${item.marksObtained}</div>
+            </div>
+          </div>`;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<p class="text-red-500 text-center py-4">Network error</p>';
+      }
+    }
+
+    async function openAnalysis(testId) {
+      const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getTestAnalysis', token: studentToken, testId }) });
+      const data = await res.json();
+      if (data.status !== 'success') {
+        showMessage(data.data, true);
+        return;
+      }
+      const modal = document.getElementById('analysisModal');
+      const content = document.getElementById('analysisModalContent');
+      let html = '';
+      data.data.forEach((item, idx) => {
+        const status = item.isCorrect ? 'text-green-600' : 'text-red-600';
+        const yourAnswer = item.studentAnswer || '<em>Not answered</em>';
+        const correctAnswer = item.questionType === 'NUMERICAL' ? item.correctAnswer : `Option ${item.correct}`;
+        html += `<div class="border-b pb-4 mb-4">
+          <p class="font-medium">Q${idx+1}: ${item.qTextEng}</p>
+          <p class="text-sm text-gray-600">${item.qTextHin || ''}</p>
+          <div class="grid grid-cols-2 gap-2 mt-2 text-sm">
+            <div><span class="font-semibold">Your answer:</span> ${yourAnswer}</div>
+            <div><span class="font-semibold">Correct answer:</span> ${correctAnswer}</div>
+            <div><span class="font-semibold">Status:</span> <span class="${status}">${item.isCorrect ? 'Correct' : 'Incorrect'}</span></div>
+            <div><span class="font-semibold">Marks:</span> ${item.marksObtained}</div>
+          </div>
+        </div>`;
+      });
+      content.innerHTML = html;
+      modal.style.display = 'flex';
+    }
+
+    function closeAnalysisModal() {
+      document.getElementById('analysisModal').style.display = 'none';
+    }
+
+    async function sendContactMessage() {
+      const message = document.getElementById('contactMessage').value.trim();
+      if (!message) return showMessage('Message cannot be empty', true);
+      const btn = document.getElementById('sendContactBtn');
+      const original = btn.innerHTML;
+      showLoading(btn);
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'sendMessage', token: studentToken, message }) });
+        const data = await res.json();
+        if (data.status === 'success') {
+          showMessage('Message sent successfully');
+          document.getElementById('contactMessage').value = '';
+        } else {
+          showMessage(data.data, true);
+        }
+      } catch (e) {
+        showMessage('Network error', true);
+      }
+      hideLoading(btn, original);
+    }
+
+    function logout() {
+      localStorage.removeItem('studentToken');
+      localStorage.removeItem('studentName');
+      localStorage.removeItem('studentId');
+      window.location.href = 'login.html';
+    }
+  </script>
+</body>
+</html>
